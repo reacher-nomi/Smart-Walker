@@ -1,0 +1,35 @@
+﻿Raspberry Pi Configuration
+==========================
+Date: 2026-01-22 17:45:54
+
+Network:
+--------
+Laptop IP: 192.168.0.253
+Raspberry Pi IP: 192.168.0.49
+Backend URL: http://192.168.0.253:8080
+
+Configuration for send_to_backend.py:
+------------------------------------
+BACKEND_URL = "http://192.168.0.253:8080"
+DEVICE_ID = "RPI-SENSOR-001"
+DEVICE_SECRET = "CHANGE_ME_IN_PRODUCTION_USE_LONG_RANDOM_STRING_HERE_MIN_32_CHARS"
+READING_INTERVAL = 2
+
+Steps to Connect Raspberry Pi:
+-------------------------------
+1. On Raspberry Pi, edit the script:
+   nano ~/sensor_reader.py/send_to_backend.py
+
+2. Update the configuration section with values above
+
+3. Run the script:
+   python3 send_to_backend.py
+
+4. Watch the SSE stream on laptop:
+   http://localhost:8080/api/stream/vitals
+
+Troubleshooting:
+----------------
+- Check laptop firewall allows port 8080
+- Verify backend is running: http://localhost:8080/health
+- Test from Pi: curl http://192.168.0.253:8080/health

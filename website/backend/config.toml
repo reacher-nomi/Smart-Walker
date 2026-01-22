@@ -1,0 +1,42 @@
+# Copy this to config.toml and customize for your environment
+
+[server]
+bind_addr = "0.0.0.0:8080"
+workers = 4
+
+[database]
+url = "postgresql://medhealth:devpassword123@localhost:5433/medhealth_db"
+max_connections = 20
+min_connections = 5
+
+[redis]
+url = "redis://localhost:6379"
+pool_size = 10
+
+[jwt]
+secret = "CHANGE_ME_IN_PRODUCTION_USE_LONG_RANDOM_STRING_HERE_MIN_32_CHARS"
+expiration_hours = 24
+refresh_token_days = 7
+
+[cors]
+allowed_origins = ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000", "http://127.0.0.1:3000"]
+
+[device]
+secret = "CHANGE_ME_DEVICE_SECRET"
+replay_window_seconds = 60
+
+[ml]
+anomaly_threshold = 0.85
+enable_alerts = true
+critical_hr_low = 40
+critical_hr_high = 180
+critical_spo2_low = 88
+
+[fhir]
+base_url = "http://localhost:8080/fhir"
+organization_id = "org-medhealth-001"
+
+[logging]
+level = "debug"
+audit_log_path = "./logs/audit.log"
+enable_phi_encryption = true

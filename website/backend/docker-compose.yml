@@ -1,0 +1,49 @@
+# Docker Compose configuration for MedHealth Backend
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: medhealth_postgres
+    environment:
+      POSTGRES_USER: medhealth
+      POSTGRES_PASSWORD: devpassword123
+      POSTGRES_DB: medhealth_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medhealth"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: medhealth_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Optional: pgAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: medhealth_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@medhealth.local
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:
+  redis_data:

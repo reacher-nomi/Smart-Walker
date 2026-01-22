@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedHealth Monitor - Live Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 8px 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            font-size: 0.9em;
+        }
+
+        .status.connected {
+            background: #10b981;
+        }
+
+        .status.disconnected {
+            background: #ef4444;
+        }
+
+        .vitals-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .vital-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease;
+        }
+
+        .vital-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .vital-icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+
+        .vital-label {
+            color: #6b7280;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+
+        .vital-value {
+            font-size: 3em;
+            font-weight: bold;
+            color: #1f2937;
+        }
+
+        .vital-unit {
+            font-size: 0.5em;
+            color: #9ca3af;
+            font-weight: normal;
+        }
+
+        .vital-status {
+            margin-top: 10px;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.85em;
+            display: inline-block;
+        }
+
+        .status-normal {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-critical {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .alerts-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            margin-bottom: 30px;
+        }
+
+        .alerts-section h2 {
+            margin-bottom: 15px;
+            color: #1f2937;
+        }
+
+        .alert-item {
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+        }
+
+        .alert-item.critical {
+            background: #fee2e2;
+            border-left-color: #ef4444;
+        }
+
+        .log-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .log-section h2 {
+            margin-bottom: 15px;
+            color: #1f2937;
+        }
+
+        .log-entry {
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            padding: 8px;
+            border-bottom: 1px solid #e5e7eb;
+            color: #4b5563;
+        }
+
+        .timestamp {
+            color: #9ca3af;
+            margin-right: 10px;
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .footer {
+            text-align: center;
+            color: white;
+            margin-top: 30px;
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏥 MedHealth Live Monitor</h1>
+            <div class="status disconnected" id="connectionStatus">
+                ⚫ Disconnected
+            </div>
+        </div>
+
+        <div class="vitals-grid">
+            <div class="vital-card">
+                <div class="vital-icon">❤️</div>
+                <div class="vital-label">Heart Rate</div>
+                <div class="vital-value" id="heartRate">
+                    --<span class="vital-unit">bpm</span>
+                </div>
+                <div class="vital-status status-normal" id="hrStatus">Normal</div>
+            </div>
+
+            <div class="vital-card">
+                <div class="vital-icon">🫁</div>
+                <div class="vital-label">Blood Oxygen</div>
+                <div class="vital-value" id="spo2">
+                    --<span class="vital-unit">%</span>
+                </div>
+                <div class="vital-status status-normal" id="spo2Status">Normal</div>
+            </div>
+
+            <div class="vital-card">
+                <div class="vital-icon">🌡️</div>
+                <div class="vital-label">Temperature</div>
+                <div class="vital-value" id="temperature">
+                    --<span class="vital-unit">°C</span>
+                </div>
+                <div class="vital-status status-normal" id="tempStatus">Normal</div>
+            </div>
+        </div>
+
+        <div class="alerts-section">
+            <h2>⚠️ Alerts & Anomalies</h2>
+            <div id="alertsContainer">
+                <p style="color: #9ca3af;">No alerts - All vitals normal</p>
+            </div>
+        </div>
+
+        <div class="log-section">
+            <h2>📊 Activity Log</h2>
+            <div id="logContainer">
+                <div class="log-entry">
+                    <span class="timestamp">--:--:--</span>
+                    Waiting for data...
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            MedHealth Monitor v1.0 | Real-time IoT Health Monitoring System
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const BACKEND_URL = 'http://localhost:8080';
+        
+        // State
+        let eventSource = null;
+        let logs = [];
+        const MAX_LOGS = 50;
+
+        // DOM Elements
+        const connectionStatus = document.getElementById('connectionStatus');
+        const heartRateEl = document.getElementById('heartRate');
+        const spo2El = document.getElementById('spo2');
+        const temperatureEl = document.getElementById('temperature');
+        const hrStatusEl = document.getElementById('hrStatus');
+        const spo2StatusEl = document.getElementById('spo2Status');
+        const tempStatusEl = document.getElementById('tempStatus');
+        const alertsContainer = document.getElementById('alertsContainer');
+        const logContainer = document.getElementById('logContainer');
+
+        // Connect to SSE stream
+        function connectToStream() {
+            addLog('INFO', 'Connecting to backend...');
+            
+            eventSource = new EventSource(`${BACKEND_URL}/api/stream/vitals`);
+
+            eventSource.onopen = () => {
+                updateConnectionStatus(true);
+                addLog('SUCCESS', 'Connected to real-time stream');
+            };
+
+            eventSource.addEventListener('vitals', (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    updateVitals(data);
+                } catch (e) {
+                    console.error('Error parsing data:', e);
+                }
+            });
+
+            eventSource.onerror = (error) => {
+                updateConnectionStatus(false);
+                addLog('ERROR', 'Connection lost. Retrying in 5s...');
+                eventSource.close();
+                setTimeout(connectToStream, 5000);
+            };
+        }
+
+        // Update connection status
+        function updateConnectionStatus(connected) {
+            if (connected) {
+                connectionStatus.textContent = '🟢 Connected';
+                connectionStatus.className = 'status connected pulse';
+            } else {
+                connectionStatus.textContent = '⚫ Disconnected';
+                connectionStatus.className = 'status disconnected';
+            }
+        }
+
+        // Update vitals display
+        function updateVitals(data) {
+            // Heart Rate
+            if (data.heartRate !== undefined) {
+                if (data.heartRate === 0) {
+                    heartRateEl.innerHTML = `--<span class="vital-unit">bpm</span>`;
+                    hrStatusEl.className = 'vital-status';
+                    hrStatusEl.textContent = 'No Sensor';
+                } else {
+                    heartRateEl.innerHTML = `${data.heartRate}<span class="vital-unit">bpm</span>`;
+                    updateStatus(hrStatusEl, data.heartRate, 60, 100, 40, 180);
+                }
+            }
+
+            // SpO2
+            if (data.spo2 !== undefined) {
+                if (data.spo2 === 0) {
+                    spo2El.innerHTML = `--<span class="vital-unit">%</span>`;
+                    spo2StatusEl.className = 'vital-status';
+                    spo2StatusEl.textContent = 'No Sensor';
+                } else {
+                    spo2El.innerHTML = `${data.spo2}<span class="vital-unit">%</span>`;
+                    updateStatus(spo2StatusEl, data.spo2, 95, 100, 88, 94);
+                }
+            }
+
+            // Temperature
+            if (data.temperature !== undefined) {
+                if (data.temperature === 0) {
+                    temperatureEl.innerHTML = `--<span class="vital-unit">°C</span>`;
+                    tempStatusEl.className = 'vital-status';
+                    tempStatusEl.textContent = 'No Sensor';
+                } else {
+                    temperatureEl.innerHTML = `${data.temperature.toFixed(1)}<span class="vital-unit">°C</span>`;
+                    updateStatus(tempStatusEl, data.temperature, 36.1, 37.2, 35.0, 38.0);
+                }
+            }
+
+            // Log the reading
+            if (data.heartRate === 0 || data.spo2 === 0 || data.temperature === 0) {
+                addLog('INFO', 'No finger detected - sensor cleared');
+            } else {
+                addLog('DATA', `HR: ${data.heartRate} bpm, SpO2: ${data.spo2}%, Temp: ${data.temperature.toFixed(1)}°C`);
+            }
+
+            // Check for anomalies
+            if (data.ml_analysis && data.ml_analysis.alerts && data.ml_analysis.alerts.length > 0) {
+                addAlert(data.ml_analysis.alerts);
+            }
+        }
+
+        // Update status badge
+        function updateStatus(element, value, normalMin, normalMax, criticalMin, criticalMax) {
+            element.className = 'vital-status';
+            
+            if (value >= normalMin && value <= normalMax) {
+                element.className += ' status-normal';
+                element.textContent = 'Normal';
+            } else if (value >= criticalMin && value <= criticalMax) {
+                element.className += ' status-warning';
+                element.textContent = 'Warning';
+            } else {
+                element.className += ' status-critical';
+                element.textContent = 'Critical';
+            }
+        }
+
+        // Add alert
+        function addAlert(alerts) {
+            alertsContainer.innerHTML = '';
+            alerts.forEach(alert => {
+                const alertEl = document.createElement('div');
+                alertEl.className = 'alert-item';
+                if (alert.includes('Critical') || alert.includes('Abnormal')) {
+                    alertEl.className += ' critical';
+                }
+                alertEl.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong> - ${alert}`;
+                alertsContainer.appendChild(alertEl);
+            });
+            
+            addLog('ALERT', alerts.join(', '));
+        }
+
+        // Add log entry
+        function addLog(type, message) {
+            const timestamp = new Date().toLocaleTimeString();
+            logs.unshift({ timestamp, type, message });
+            
+            if (logs.length > MAX_LOGS) {
+                logs = logs.slice(0, MAX_LOGS);
+            }
+
+            renderLogs();
+        }
+
+        // Render logs
+        function renderLogs() {
+            logContainer.innerHTML = logs.map(log => `
+                <div class="log-entry">
+                    <span class="timestamp">${log.timestamp}</span>
+                    <strong>[${log.type}]</strong> ${log.message}
+                </div>
+            `).join('');
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            addLog('SYSTEM', 'Dashboard initialized');
+            connectToStream();
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (eventSource) {
+                eventSource.close();
+            }
+        });
+    </script>
+</body>
+</html>

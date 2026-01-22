@@ -377,14 +377,4 @@ All data access is logged with:
 | **Fault Tolerance** | Connection pooling, retry logic, health checks | ✅ |
 | **FHIR Compliance** | FHIR R4 Observation, LOINC codes, JSONB storage | ✅ |
 
-## 📝 License
 
-[Your License Here]
-
-## 🤝 Contributing
-
-Contributions welcome! Please read CONTRIBUTING.md first.
-
-## 📧 Contact
-
-For questions, contact [your-email@example.com]

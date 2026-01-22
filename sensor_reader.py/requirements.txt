@@ -1,0 +1,6 @@
+max30102
+hrcalc
+requests
+numpy
+smbus
+flask

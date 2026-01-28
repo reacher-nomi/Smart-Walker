@@ -112,6 +112,7 @@ async fn main() -> std::io::Result<()> {
             .route("/auth/logout", web::post().to(handlers::logout))
             // API routes (JWT protected)
             .route("/api/vitals/latest", web::get().to(handlers::get_latest_vitals))
+            .route("/api/fhir/export", web::get().to(handlers::export_fhir_bundle))
             // SSE stream (JWT protected in production)
             .route("/api/stream/vitals", web::get().to(sse::stream_vitals))
             // Device ingestion (HMAC protected)

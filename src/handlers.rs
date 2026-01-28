@@ -387,3 +387,81 @@ pub async fn get_latest_vitals(
         }),
     }
 }
+
+// ============ FHIR Export Handler ============
+
+pub async fn export_fhir_bundle(
+    req: HttpRequest,
+    state: web::Data<AppState>,
+    query: web::Query<serde_json::Value>,
+) -> impl Responder {
+    // Verify JWT
+    let auth_header = req.headers().get("Authorization").and_then(|h| h.to_str().ok());
+    let token = match extract_bearer_token(auth_header) {
+        Ok(t) => t,
+        Err(_) => return HttpResponse::Unauthorized().json(serde_json::json!({"error": "Missing token"})),
+    };
+
+    let claims = match state.jwt_auth.validate_token(&token) {
+        Ok(c) => c,
+        Err(_) => return HttpResponse::Unauthorized().json(serde_json::json!({"error": "Invalid token"})),
+    };
+
+    // Check if token is revoked
+    if state.jwt_auth.is_token_revoked(claims.jti, &state.pool).await.unwrap_or(false) {
+        return HttpResponse::Unauthorized().json(serde_json::json!({"error": "Token revoked"}));
+    }
+
+    // Get limit from query (default 100)
+    let limit = query.get("limit")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(100)
+        .min(1000) as i64; // Max 1000 records
+
+    // Fetch recent sensor readings
+    let readings: Result<Vec<SensorReading>, _> = sqlx::query_as(
+        "SELECT * FROM sensor_readings 
+         ORDER BY reading_timestamp DESC 
+         LIMIT $1"
+    )
+    .bind(limit)
+    .fetch_all(&state.pool)
+    .await;
+
+    match readings {
+        Ok(rs) => {
+            // Convert each reading to FHIR observations
+            let mut entries = Vec::new();
+            
+            for reading in &rs {
+                let bundle = state.fhir_service.create_observation_bundle(reading, None);
+                
+                // Extract entries from bundle
+                if let Some(entry_array) = bundle.get("entry").and_then(|e| e.as_array()) {
+                    for entry in entry_array {
+                        entries.push(entry.clone());
+                    }
+                }
+            }
+
+            // Create FHIR Bundle
+            let fhir_bundle = serde_json::json!({
+                "resourceType": "Bundle",
+                "id": uuid::Uuid::new_v4().to_string(),
+                "type": "collection",
+                "timestamp": Utc::now().to_rfc3339(),
+                "total": entries.len(),
+                "entry": entries
+            });
+
+            HttpResponse::Ok()
+                .content_type("application/fhir+json")
+                .json(fhir_bundle)
+        }
+        Err(e) => {
+            HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": format!("Failed to fetch readings: {}", e)
+            }))
+        }
+    }
+}

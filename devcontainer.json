@@ -1,0 +1,72 @@
+{
+  "name": "MedHealth IoT Platform",
+  "dockerComposeFile": "../website/backend/docker-compose.yml",
+  "service": "backend",
+  "workspaceFolder": "/workspace",
+  
+  // Features to install
+  "features": {
+    "ghcr.io/devcontainers/features/rust:1": {
+      "version": "latest",
+      "profile": "default"
+    },
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+
+  // Configure environment
+  "containerEnv": {
+    "RUST_LOG": "info",
+    "DATABASE_URL": "postgresql://${localEnv:POSTGRES_USER}:${localEnv:POSTGRES_PASSWORD}@postgres:5432/${localEnv:POSTGRES_DB}",
+    "REDIS_URL": "redis://redis:6379",
+    "JWT_SECRET": "${localEnv:JWT_SECRET}",
+    "DEVICE_SECRET": "${localEnv:DEVICE_SECRET}"
+  },
+
+  // Ports to forward
+  "forwardPorts": [8080, 5432, 6379, 5050],
+  "portsAttributes": {
+    "8080": {
+      "label": "Backend API",
+      "onAutoForward": "notify"
+    },
+    "5432": {
+      "label": "PostgreSQL"
+    },
+    "6379": {
+      "label": "Redis"
+    },
+    "5050": {
+      "label": "pgAdmin"
+    }
+  },
+
+  // Run commands after container creation
+  "postCreateCommand": "bash .devcontainer/setup.sh",
+
+  // Run commands when container starts
+  "postStartCommand": "cd /workspace/website/backend && docker-compose up -d postgres redis || true",
+
+  // VSCode settings
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "vadimcn.vscode-lldb",
+        "serayuzgur.crates",
+        "tamasfe.even-better-toml",
+        "ms-azuretools.vscode-docker"
+      ],
+      "settings": {
+        "rust-analyzer.checkOnSave.command": "clippy",
+        "editor.formatOnSave": true,
+        "[rust]": {
+          "editor.defaultFormatter": "rust-lang.rust-analyzer"
+        }
+      }
+    }
+  },
+
+  // Use 'forwardPorts' to make a list of ports inside the container available locally
+  "remoteUser": "vscode"
+}

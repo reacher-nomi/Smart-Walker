@@ -3,15 +3,21 @@ set -e
 
 echo "🚀 Running post-create setup..."
 
-# Ensure we're in the workspace root
-cd "$(dirname "$0")/.." || cd /workspaces/Smart-Walker || pwd
+WORKSPACE_ROOT="$(cd "$(dirname "$0")/.." 2>/dev/null && pwd || echo "$(pwd)")"
+cd "$WORKSPACE_ROOT"
 
-# Function to generate a random secret
 generate_secret() {
-    openssl rand -hex 32 2>/dev/null || openssl rand -base64 32 | tr -d "=+/" | cut -c1-32
+    if command -v openssl >/dev/null 2>&1; then
+        openssl rand -hex 32 2>/dev/null
+    elif [ -c /dev/urandom ]; then
+        head -c 32 /dev/urandom | base64 | tr -d "=+/" | cut -c1-32
+    elif command -v shuf >/dev/null 2>&1; then
+        cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1
+    else
+        echo "$(date +%s%N)$(cat /proc/sys/kernel/random/uuid 2>/dev/null || echo $$)" | sha256sum | cut -d' ' -f1 | cut -c1-32
+    fi
 }
 
-# Generate secrets if not provided
 if [ -z "$POSTGRES_PASSWORD" ]; then
     echo "🔑 Generating secure random POSTGRES_PASSWORD"
     export POSTGRES_PASSWORD=$(generate_secret)
@@ -32,7 +38,6 @@ if [ -z "$MEDHEALTH__DEVICE__SECRET" ]; then
     export MEDHEALTH__DEVICE__SECRET=$(generate_secret)
 fi
 
-# Create .env file in root directory
 echo "📝 Creating .env file..."
 cat > .env << ENVEOF
 POSTGRES_USER=${POSTGRES_USER:-medhealth}
@@ -47,12 +52,11 @@ JWT_SECRET=${MEDHEALTH__JWT__SECRET}
 DEVICE_SECRET=${MEDHEALTH__DEVICE__SECRET}
 ENVEOF
 
-echo "✅ .env file created with all required variables"
+echo "✅ .env file created"
 
-# Also create in backend directory if it exists
 if [ -d "website/backend" ]; then
-    cp .env website/backend/.env
+    cp .env website/backend/.env 2>/dev/null || true
     echo "✅ Backend .env file created"
 fi
 
-echo "✅ Post-create setup complete! You can now run 'docker-compose up'"
+echo "✅ Post-create setup complete!"

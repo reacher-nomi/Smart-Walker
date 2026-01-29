@@ -3,44 +3,53 @@ set -e
 
 echo "🐳 Starting Docker services..."
 
-# Ensure we're in the workspace root
 WORKSPACE_ROOT="$(cd "$(dirname "$0")/.." 2>/dev/null && pwd || echo "$(pwd)")"
 cd "$WORKSPACE_ROOT"
 
-# Wait for Docker to be ready
 echo "⏳ Waiting for Docker to be ready..."
-timeout=30
+timeout=60
+docker_ready=false
 while [ $timeout -gt 0 ]; do
-    if docker info >/dev/null 2>&1; then
+    if docker info >/dev/null 2>&1 || sudo docker info >/dev/null 2>&1; then
+        docker_ready=true
         echo "✅ Docker is ready"
         break
     fi
-    echo "   Waiting... ($timeout seconds remaining)"
+    if [ -S /var/run/docker.sock ] || [ -S /var/run/docker-host.sock ]; then
+        docker_ready=true
+        echo "✅ Docker socket found"
+        break
+    fi
+    if [ $((timeout % 10)) -eq 0 ]; then
+        echo "   Waiting... ($timeout seconds remaining)"
+    fi
     sleep 1
     timeout=$((timeout - 1))
 done
 
-if ! docker info >/dev/null 2>&1; then
-    echo "⚠️  Docker not ready, skipping docker-compose"
+if [ "$docker_ready" = false ]; then
+    echo "⚠️  Docker not ready, but continuing..."
+    echo "ℹ️  You can manually start services with: docker-compose up -d"
     exit 0
 fi
 
-# Load environment variables if .env exists
 if [ -f .env ]; then
     set -a
     source .env
     set +a
 fi
 
-# Start services
 if [ -f docker-compose.yml ]; then
     echo "🚀 Starting docker-compose services..."
-    docker-compose up -d || echo "⚠️  docker-compose failed, but continuing..."
-    
-    # Wait for services to be healthy
-    echo "⏳ Waiting for services to start..."
+    if command -v docker-compose >/dev/null 2>&1; then
+        docker-compose up -d || echo "⚠️  docker-compose failed, but continuing..."
+    elif docker compose version >/dev/null 2>&1; then
+        docker compose up -d || echo "⚠️  docker compose failed, but continuing..."
+    else
+        echo "⚠️  Neither docker-compose nor docker compose found"
+        exit 0
+    fi
     sleep 5
-    
     echo "✅ Services started (or already running)"
 else
     echo "⚠️  docker-compose.yml not found"

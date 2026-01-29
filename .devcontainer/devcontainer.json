@@ -1,0 +1,62 @@
+{
+  "name": "MedHealth Development Environment",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  
+  "features": {
+    "ghcr.io/devcontainers/features/rust:1": {
+      "version": "latest"
+    },
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "lts"
+    },
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
+      "version": "latest",
+      "dockerDashComposeVersion": "v2"
+    }
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "vadimcn.vscode-lldb",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-vscode.vscode-typescript-next"
+      ],
+      "settings": {
+        "rust-analyzer.checkOnSave.command": "clippy",
+        "rust-analyzer.cargo.features": "all"
+      }
+    }
+  },
+
+  "postCreateCommand": "bash -c 'chmod +x setup.sh .devcontainer/*.sh 2>/dev/null || true; if [ -f .devcontainer/post-create.sh ]; then bash .devcontainer/post-create.sh || echo \"Post-create completed with warnings\"; else echo \"Post-create script not found, skipping\"; fi'",
+  "postStartCommand": "bash -c 'sleep 2; if [ -f .devcontainer/start-services.sh ]; then bash .devcontainer/start-services.sh || echo \"Services start completed with warnings\"; fi'",
+
+  "forwardPorts": [8080, 5173, 5433, 6379, 5050],
+  "portsAttributes": {
+    "8080": {
+      "label": "Backend API",
+      "onAutoForward": "notify"
+    },
+    "5173": {
+      "label": "Frontend Dev Server",
+      "onAutoForward": "notify"
+    },
+    "5433": {
+      "label": "PostgreSQL",
+      "onAutoForward": "silent"
+    },
+    "6379": {
+      "label": "Redis",
+      "onAutoForward": "silent"
+    },
+    "5050": {
+      "label": "pgAdmin",
+      "onAutoForward": "silent"
+    }
+  },
+
+  "remoteUser": "vscode"
+}

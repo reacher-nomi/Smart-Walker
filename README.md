@@ -14,6 +14,7 @@ A production-grade health monitoring system built with Rust, featuring real-time
 - [Deployment](#deployment)
 - [Security](#security)
 - [HIPAA Compliance](#hipaa-compliance)
+- [Team Contribution Table](#Team-Contribution-Table)
 
 ## 🏗️ Architecture
 
@@ -376,5 +377,17 @@ All data access is logged with:
 | **Authentication** | JWT + HMAC, token revocation, Argon2 | ✅ |
 | **Fault Tolerance** | Connection pooling, retry logic, health checks | ✅ |
 | **FHIR Compliance** | FHIR R4 Observation, LOINC codes, JSONB storage | ✅ |
+
+
+
+##  Team Contribution Table  
+**Project: Smart-Walker – IoT Health Monitoring System**
+
+| Team Member | Role | Key Technical Areas | Major Contributions | Core Files / Components |
+|------------|------|---------------------|---------------------|--------------------------|
+| **Nouman** | Backend Core & Sensor Application Layer Lead | System architecture, Rust backend, security, ML service, sensor threading | Designed system architecture; built Rust backend core; implemented JWT + HMAC authentication; developed ML anomaly detection; created HTTP handlers; built sensor application layer including threading, rolling buffers, finger detection, smoothing algorithms, and thread-safe integration | `main.rs`, `auth.rs`, `handlers.rs`, `ml_service.rs`, `middleware.rs`, `config.rs`, `heartrate_monitor.py`, `ARCHITECTURE.md` |
+| **Zain** | Backend Services, Infrastructure & Hardware Integration Lead | Database, FHIR, SSE, Redis, logging, hardware integration, data pipeline | Designed DB schema and migrations; implemented FHIR R4 service; built SSE streaming; implemented Redis caching; created audit logging; set up Docker Compose; integrated sensors; built data pipeline; implemented real-time HR/SpO₂ computation and alerts; system testing | `database.rs`, `fhir_service.rs`, `sse.rs`, `redis_cache.rs`, `models.rs`, `logging.rs`, `docker-compose.yml`, `send_to_backend.py` |
+| **Haris** | Frontend, Signal Processing & Documentation Lead | React frontend, visualization, signal processing | Built React dashboard with D3.js; implemented authentication UI and routing; developed API client; styled frontend; implemented HR & SpO₂ algorithms; integrated and validated algorithms; wrote documentation | `dashboard.tsx`, `auth.tsx`, `app.tsx`, `api.ts`, `style.css`, `hrcalc.py`, `README.md`, `QUICK_START.md` |
+| **Hassan** | Hardware Driver & Testing Lead | Sensor driver, I2C communication, hardware validation | Developed MAX30102 driver; implemented FIFO buffer handling and 18-bit extraction; performed hardware validation using Linux I2C tools; wrote bash testing scripts; configured Raspberry Pi interfaces; handled hardware abstraction and power stability | `max30102.py`, bash scripts, Raspberry Pi configuration |
 
 

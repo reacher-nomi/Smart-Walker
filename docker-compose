@@ -1,0 +1,42 @@
+#!/bin/bash
+# Wrapper script that makes "docker-compose up" work automatically
+# This intercepts docker-compose calls and ensures .env exists first
+
+# Get the directory where docker-compose.yml is located
+if [ -f docker-compose.yml ]; then
+    COMPOSE_DIR="$(pwd)"
+elif [ -d /workspaces/Smart-Walker ] && [ -f /workspaces/Smart-Walker/docker-compose.yml ]; then
+    COMPOSE_DIR="/workspaces/Smart-Walker"
+    cd "$COMPOSE_DIR"
+else
+    COMPOSE_DIR="$(find . -name "docker-compose.yml" -type f 2>/dev/null | head -1 | xargs dirname 2>/dev/null || pwd)"
+    cd "$COMPOSE_DIR" 2>/dev/null || cd "$(pwd)"
+fi
+
+# Ensure .env exists
+if [ ! -f .env ]; then
+    echo "📝 Auto-creating .env file..."
+    if [ -f .devcontainer/post-create.sh ]; then
+        bash .devcontainer/post-create.sh 2>&1 | grep -v "ERROR\|WARN" || true
+    elif [ -f setup.sh ]; then
+        chmod +x setup.sh 2>/dev/null || true
+        bash setup.sh 2>&1 | grep -v "ERROR\|WARN" || true
+    fi
+fi
+
+# Verify .env exists and has content
+if [ ! -f .env ] || [ ! -s .env ]; then
+    echo "❌ ERROR: Could not create .env file"
+    echo "Please run: bash .devcontainer/post-create.sh"
+    exit 1
+fi
+
+# Run actual docker-compose with --env-file
+if command docker compose version >/dev/null 2>&1; then
+    exec docker compose --env-file .env "$@"
+elif command -v docker-compose >/dev/null 2>&1; then
+    exec docker-compose --env-file .env "$@"
+else
+    echo "❌ docker-compose not found"
+    exit 1
+fi

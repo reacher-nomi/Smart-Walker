@@ -60,3 +60,12 @@ if [ -d "website/backend" ]; then
 fi
 
 echo "✅ Post-create setup complete!"
+
+# Verify .env file was created and has content
+if [ -f .env ]; then
+    echo "✅ Verified .env file exists"
+    echo "   File size: $(wc -l < .env) lines"
+else
+    echo "❌ ERROR: .env file was not created!"
+    exit 1
+fi

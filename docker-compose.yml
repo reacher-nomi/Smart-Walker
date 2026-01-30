@@ -1,6 +1,7 @@
-# Docker Compose configuration for MedHealth Backend
-# Run from root directory: docker-compose up
-# All secrets are loaded from environment variables or .env file
+# Docker Compose configuration for MedHealth / Smart-Walker
+# Run from repo root: docker-compose up
+# Full platform build: postgres, redis, backend (Rust API), pgAdmin
+# Create .env from .env.example and set POSTGRES_PASSWORD, JWT_SECRET, DEVICE_SECRET
 
 services:
   postgres:
@@ -8,7 +9,7 @@ services:
     container_name: medhealth_postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-medhealth}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
       POSTGRES_DB: ${POSTGRES_DB:-medhealth_db}
     ports:
       - "${POSTGRES_PORT:-5433}:5432"
@@ -34,7 +35,42 @@ services:
       timeout: 3s
       retries: 5
 
-  # Optional: pgAdmin for database management
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: medhealth_backend
+    environment:
+      MEDHEALTH__SERVER__BIND_ADDR: "0.0.0.0:8080"
+      MEDHEALTH__DATABASE__URL: "postgresql://${POSTGRES_USER:-medhealth}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-medhealth_db}"
+      MEDHEALTH__DATABASE__MAX_CONNECTIONS: "20"
+      MEDHEALTH__DATABASE__MIN_CONNECTIONS: "5"
+      MEDHEALTH__REDIS__URL: "redis://redis:6379"
+      MEDHEALTH__REDIS__POOL_SIZE: "10"
+      MEDHEALTH__JWT__SECRET: ${JWT_SECRET:-change_me_jwt_secret_min_32_chars_long}
+      MEDHEALTH__JWT__EXPIRATION_HOURS: "24"
+      MEDHEALTH__JWT__REFRESH_TOKEN_DAYS: "7"
+      MEDHEALTH__DEVICE__SECRET: ${DEVICE_SECRET:-change_me_device_secret_32_chars}
+      MEDHEALTH__DEVICE__REPLAY_WINDOW_SECONDS: "60"
+      MEDHEALTH__CORS__ALLOWED_ORIGINS: "http://localhost:5173,http://127.0.0.1:5173"
+      MEDHEALTH__ML__ANOMALY_THRESHOLD: "0.85"
+      MEDHEALTH__ML__ENABLE_ALERTS: "true"
+      MEDHEALTH__ML__CRITICAL_HR_LOW: "40"
+      MEDHEALTH__ML__CRITICAL_HR_HIGH: "180"
+      MEDHEALTH__ML__CRITICAL_SPO2_LOW: "88"
+      MEDHEALTH__FHIR__BASE_URL: "http://localhost:8080/fhir"
+      MEDHEALTH__FHIR__ORGANIZATION_ID: "org-medhealth-001"
+      MEDHEALTH__LOGGING__LEVEL: "info"
+      MEDHEALTH__LOGGING__AUDIT_LOG_PATH: "./logs/audit.log"
+      MEDHEALTH__LOGGING__ENABLE_PHI_ENCRYPTION: "true"
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: medhealth_pgadmin

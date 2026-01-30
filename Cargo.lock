@@ -1515,6 +1515,7 @@ dependencies = [
  "sha2",
  "smartcore",
  "sqlx",
+ "tempfile",
  "thiserror 1.0.69",
  "tokio",
  "tokio-stream",

@@ -65,6 +65,7 @@ lazy_static = "1.4"
 proptest = "1.4"
 quickcheck = "1"
 fake = "2.9"
+tempfile = "3"
 
 [profile.release]
 opt-level = 3

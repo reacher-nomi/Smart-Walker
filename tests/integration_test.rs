@@ -25,136 +25,65 @@ const TEST_REDIS_URL: &str = "redis://localhost:6379";
 const TEST_JWT_SECRET: &str = "test_secret_key_minimum_32_chars_long_for_security_testing";
 const TEST_DEVICE_SECRET: &str = "test_device_secret_for_hmac_testing_32_chars";
 
-async fn setup_test_app() -> App<impl actix_web::dev::ServiceFactory<actix_web::dev::ServiceRequest, Config = (), Error = actix_web::Error, InitError = ()>> {
-    // Create test database pool
-    let db_config = DatabaseConfig {
-        url: TEST_DATABASE_URL.to_string(),
-        max_connections: 5,
-        min_connections: 1,
-    };
-    
-    let pool = create_pool(&db_config).await.expect("Failed to create test database pool");
-    
-    // Run migrations
-    run_migrations(&pool).await.expect("Failed to run migrations");
-    
-    // Create Redis cache (may fail if Redis not available, but that's OK for some tests)
-    let redis = RedisCache::new(&RedisConfig {
-        url: TEST_REDIS_URL.to_string(),
-        pool_size: 5,
-    }).await.ok();
-    
-    let redis = if let Some(r) = redis {
-        Arc::new(RwLock::new(r))
-    } else {
-        // For tests that need Redis, they should be skipped if Redis is unavailable
-        return create_app_without_redis(pool).await;
-    };
-    
-    // Initialize services
-    let jwt_config = JwtConfig {
-        secret: TEST_JWT_SECRET.to_string(),
-        expiration_hours: 24,
-        refresh_token_days: 7,
-    };
-    let jwt_auth = Arc::new(JwtAuth::new(&jwt_config));
-    
-    let ml_service = Arc::new(MlService::new(MlConfig {
-        anomaly_threshold: 0.85,
-        enable_alerts: true,
-        critical_hr_low: 40,
-        critical_hr_high: 180,
-        critical_spo2_low: 88,
-    }));
-    
-    let fhir_service = Arc::new(FhirService::new(FhirConfig {
-        base_url: "http://localhost:8080/fhir".to_string(),
-        organization_id: "org-test-001".to_string(),
-    }));
-    
-    let sse_broadcaster = sse::create_broadcaster();
-    
-    let app_state = web::Data::new(AppState {
-        pool: pool.clone(),
-        redis: redis.clone(),
-        jwt_auth: jwt_auth.clone(),
-        ml_service: ml_service.clone(),
-        fhir_service: fhir_service.clone(),
-        sse_broadcaster: sse_broadcaster.clone(),
-        device_secret: TEST_DEVICE_SECRET.to_string(),
-    });
-    
-    App::new()
-        .app_data(app_state.clone())
-        .app_data(web::Data::new(pool.clone()))
-        .app_data(web::Data::new(sse_broadcaster.clone()))
-        .route("/health", web::get().to(health_check))
-        .route("/auth/signup", web::post().to(signup))
-        .route("/auth/login", web::post().to(login))
-        .route("/auth/logout", web::post().to(logout))
-        .route("/api/vitals/latest", web::get().to(get_latest_vitals))
-        .route("/api/fhir/export", web::get().to(export_fhir_bundle))
-        .route("/api/device/vitals", web::post().to(device_ingest))
-}
-
-async fn create_app_without_redis(pool: PgPool) -> App<impl actix_web::dev::ServiceFactory<actix_web::dev::ServiceRequest, Config = (), Error = actix_web::Error, InitError = ()>> {
-    let jwt_config = JwtConfig {
-        secret: TEST_JWT_SECRET.to_string(),
-        expiration_hours: 24,
-        refresh_token_days: 7,
-    };
-    let jwt_auth = Arc::new(JwtAuth::new(&jwt_config));
-    
-    let ml_service = Arc::new(MlService::new(MlConfig {
-        anomaly_threshold: 0.85,
-        enable_alerts: true,
-        critical_hr_low: 40,
-        critical_hr_high: 180,
-        critical_spo2_low: 88,
-    }));
-    
-    let fhir_service = Arc::new(FhirService::new(FhirConfig {
-        base_url: "http://localhost:8080/fhir".to_string(),
-        organization_id: "org-test-001".to_string(),
-    }));
-    
-    let sse_broadcaster = sse::create_broadcaster();
-    
-    // Create a dummy Redis that will fail gracefully
-    let redis = match RedisCache::new(&RedisConfig {
-        url: "redis://invalid:6379".to_string(),
-        pool_size: 1,
-    }).await {
-        Ok(r) => Arc::new(RwLock::new(r)),
-        Err(_) => {
-            // Skip Redis-dependent tests
-            return App::new()
+/// Builds and returns the test App inline so the concrete type is known to init_service.
+macro_rules! build_test_app {
+    () => {{
+        async {
+            let db_config = DatabaseConfig {
+                url: TEST_DATABASE_URL.to_string(),
+                max_connections: 5,
+                min_connections: 1,
+            };
+            let pool = create_pool(&db_config).await.expect("Failed to create test database pool");
+            run_migrations(&pool).await.expect("Failed to run migrations");
+            let redis = RedisCache::new(&RedisConfig {
+                url: TEST_REDIS_URL.to_string(),
+                pool_size: 5,
+            })
+            .await
+            .expect("Redis required for integration tests. Run: docker-compose up -d redis");
+            let redis = Arc::new(RwLock::new(redis));
+            let jwt_config = JwtConfig {
+                secret: TEST_JWT_SECRET.to_string(),
+                expiration_hours: 24,
+                refresh_token_days: 7,
+            };
+            let jwt_auth = Arc::new(JwtAuth::new(&jwt_config));
+            let ml_service = Arc::new(MlService::new(MlConfig {
+                anomaly_threshold: 0.85,
+                enable_alerts: true,
+                critical_hr_low: 40,
+                critical_hr_high: 180,
+                critical_spo2_low: 88,
+            }));
+            let fhir_service = Arc::new(FhirService::new(FhirConfig {
+                base_url: "http://localhost:8080/fhir".to_string(),
+                organization_id: "org-test-001".to_string(),
+            }));
+            let sse_broadcaster = sse::create_broadcaster();
+            let app_state = web::Data::new(AppState {
+                pool: pool.clone(),
+                redis: redis.clone(),
+                jwt_auth: jwt_auth.clone(),
+                ml_service: ml_service.clone(),
+                fhir_service: fhir_service.clone(),
+                sse_broadcaster: sse_broadcaster.clone(),
+                device_secret: TEST_DEVICE_SECRET.to_string(),
+            });
+            App::new()
+                .app_data(app_state.clone())
                 .app_data(web::Data::new(pool.clone()))
-                .route("/health", web::get().to(health_check));
+                .app_data(web::Data::new(sse_broadcaster.clone()))
+                .route("/health", web::get().to(health_check))
+                .route("/auth/signup", web::post().to(signup))
+                .route("/auth/login", web::post().to(login))
+                .route("/auth/logout", web::post().to(logout))
+                .route("/api/vitals/latest", web::get().to(get_latest_vitals))
+                .route("/api/fhir/export", web::get().to(export_fhir_bundle))
+                .route("/api/device/vitals", web::post().to(device_ingest))
         }
-    };
-    
-    let app_state = web::Data::new(AppState {
-        pool: pool.clone(),
-        redis,
-        jwt_auth: jwt_auth.clone(),
-        ml_service: ml_service.clone(),
-        fhir_service: fhir_service.clone(),
-        sse_broadcaster: sse_broadcaster.clone(),
-        device_secret: TEST_DEVICE_SECRET.to_string(),
-    });
-    
-    App::new()
-        .app_data(app_state.clone())
-        .app_data(web::Data::new(pool.clone()))
-        .app_data(web::Data::new(sse_broadcaster.clone()))
-        .route("/health", web::get().to(health_check))
-        .route("/auth/signup", web::post().to(signup))
-        .route("/auth/login", web::post().to(login))
-        .route("/auth/logout", web::post().to(logout))
-        .route("/api/vitals/latest", web::get().to(get_latest_vitals))
-        .route("/api/fhir/export", web::get().to(export_fhir_bundle))
-        .route("/api/device/vitals", web::post().to(device_ingest))
+        .await
+    }};
 }
 
 #[actix_web::test]
@@ -186,7 +115,7 @@ async fn test_health_endpoint() {
 
 #[actix_web::test]
 async fn test_signup_valid_user() {
-    let app = test::init_service(setup_test_app().await).await;
+    let app = test::init_service(build_test_app!()).await;
     
     let signup_data = json!({
         "email": "test@example.com",
@@ -206,7 +135,7 @@ async fn test_signup_valid_user() {
 
 #[actix_web::test]
 async fn test_signup_invalid_email() {
-    let app = test::init_service(setup_test_app().await).await;
+    let app = test::init_service(build_test_app!()).await;
     
     let signup_data = json!({
         "email": "invalid-email",
@@ -224,7 +153,7 @@ async fn test_signup_invalid_email() {
 
 #[actix_web::test]
 async fn test_login_invalid_credentials() {
-    let app = test::init_service(setup_test_app().await).await;
+    let app = test::init_service(build_test_app!()).await;
     
     let login_data = json!({
         "email": "nonexistent@example.com",
@@ -242,7 +171,7 @@ async fn test_login_invalid_credentials() {
 
 #[actix_web::test]
 async fn test_login_valid_credentials() {
-    let app = test::init_service(setup_test_app().await).await;
+    let app = test::init_service(build_test_app!()).await;
     
     // First signup
     let signup_data = json!({
@@ -277,7 +206,7 @@ async fn test_login_valid_credentials() {
 
 #[actix_web::test]
 async fn test_jwt_authentication() {
-    let app = test::init_service(setup_test_app().await).await;
+    let app = test::init_service(build_test_app!()).await;
     
     // Signup and login to get token
     let signup_data = json!({
@@ -318,7 +247,7 @@ async fn test_jwt_authentication() {
 
 #[actix_web::test]
 async fn test_device_ingestion_with_valid_hmac() {
-    let app = test::init_service(setup_test_app().await).await;
+    let app = test::init_service(build_test_app!()).await;
     
     // First, register a device in the database
     let pool = create_pool(&DatabaseConfig {
@@ -376,7 +305,7 @@ async fn test_device_ingestion_with_valid_hmac() {
 
 #[actix_web::test]
 async fn test_device_ingestion_invalid_signature() {
-    let app = test::init_service(setup_test_app().await).await;
+    let app = test::init_service(build_test_app!()).await;
     
     let timestamp = chrono::Utc::now().timestamp();
     let body = json!({
@@ -400,7 +329,7 @@ async fn test_device_ingestion_invalid_signature() {
 
 #[actix_web::test]
 async fn test_device_ingestion_missing_headers() {
-    let app = test::init_service(setup_test_app().await).await;
+    let app = test::init_service(build_test_app!()).await;
     
     let body = json!({
         "heartRate": 75,
@@ -423,7 +352,7 @@ async fn test_device_ingestion_missing_headers() {
 
 #[actix_web::test]
 async fn test_device_ingestion_timestamp_replay() {
-    let app = test::init_service(setup_test_app().await).await;
+    let app = test::init_service(build_test_app!()).await;
     
     // Use old timestamp (outside 60s window)
     let old_timestamp = chrono::Utc::now().timestamp() - 120;

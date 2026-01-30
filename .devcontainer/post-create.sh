@@ -18,23 +18,34 @@ generate_secret() {
     fi
 }
 
-# Use fixed default so backend and postgres volume always match (docker-compose default is "changeme")
+# Check if POSTGRES_PASSWORD is set via GitHub Secrets
 if [ -z "$POSTGRES_PASSWORD" ]; then
-    export POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-changeme}"
+    echo "⚠️  WARNING: POSTGRES_PASSWORD not set in GitHub Secrets"
+    echo "   Generating a random password for this session..."
+    echo "   For production, set POSTGRES_PASSWORD in GitHub Repository Secrets"
+    export POSTGRES_PASSWORD=$(generate_secret)
 fi
 
-if [ -z "$MEDHEALTH__JWT__SECRET" ]; then
-    echo "🔑 Generating secure random MEDHEALTH__JWT__SECRET"
+# Generate JWT secret if not provided via GitHub Secrets
+if [ -z "$JWT_SECRET" ] && [ -z "$MEDHEALTH__JWT__SECRET" ]; then
+    echo "🔑 Generating secure random JWT_SECRET"
     export MEDHEALTH__JWT__SECRET=$(generate_secret)
+else
+    export MEDHEALTH__JWT__SECRET="${JWT_SECRET:-$MEDHEALTH__JWT__SECRET}"
 fi
 
-if [ -z "$MEDHEALTH__DEVICE__SECRET" ]; then
-    echo "🔑 Generating secure random MEDHEALTH__DEVICE__SECRET"
+# Generate device secret if not provided via GitHub Secrets
+if [ -z "$DEVICE_SECRET" ] && [ -z "$MEDHEALTH__DEVICE__SECRET" ]; then
+    echo "🔑 Generating secure random DEVICE_SECRET"
     export MEDHEALTH__DEVICE__SECRET=$(generate_secret)
+else
+    export MEDHEALTH__DEVICE__SECRET="${DEVICE_SECRET:-$MEDHEALTH__DEVICE__SECRET}"
 fi
 
-echo "📝 Creating .env file..."
+echo "📝 Creating .env file from GitHub Secrets + generated values..."
 cat > .env << ENVEOF
+# Auto-generated from GitHub Codespaces Secrets
+# DO NOT commit this file to version control!
 POSTGRES_USER=${POSTGRES_USER:-medhealth}
 POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 POSTGRES_DB=${POSTGRES_DB:-medhealth_db}
@@ -44,7 +55,7 @@ JWT_SECRET=${MEDHEALTH__JWT__SECRET}
 DEVICE_SECRET=${MEDHEALTH__DEVICE__SECRET}
 ENVEOF
 
-echo "✅ .env file created"
+echo "✅ .env file created (using GitHub Secrets where available)"
 
 if [ -d "website/backend" ]; then
     cp .env website/backend/.env 2>/dev/null || true

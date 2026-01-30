@@ -13,6 +13,7 @@ pub struct RedisCache {
 
 impl RedisCache {
     pub async fn new(config: &RedisConfig) -> Result<Self, RedisError> {
+        tracing::debug!("Creating Redis connection (configured pool_size: {})", config.pool_size);
         let client = redis::Client::open(config.url.as_str())?;
         let conn = ConnectionManager::new(client).await?;
         

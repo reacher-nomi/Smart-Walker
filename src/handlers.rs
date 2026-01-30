@@ -27,6 +27,7 @@ pub struct AppState {
     pub fhir_service: Arc<FhirService>,
     pub sse_broadcaster: SseBroadcaster,
     pub device_secret: String,
+    pub replay_window_seconds: i64,
 }
 
 // ============ Health Check ============
@@ -93,7 +94,7 @@ pub async fn signup(
         Ok(u) => {
             // Generate JWT tokens
             let token = state.jwt_auth.generate_token(u.id, &u.email, &u.role).unwrap();
-            let refresh_token = state.jwt_auth.generate_token(u.id, &u.email, &u.role).unwrap(); // In production, use different exp
+            let refresh_token = state.jwt_auth.generate_token(u.id, &u.email, &u.role).unwrap();
 
             HttpResponse::Ok().json(AuthResponse {
                 token,
@@ -227,9 +228,9 @@ pub async fn device_ingest(
         None => return HttpResponse::Unauthorized().json(serde_json::json!({"error": "Missing X-Signature"})),
     };
 
-    // Verify timestamp (replay protection)
+    // Verify timestamp (replay protection using configured window)
     let now = Utc::now().timestamp();
-    if (now - timestamp).abs() > 60 {
+    if (now - timestamp).abs() > state.replay_window_seconds {
         return HttpResponse::Unauthorized().json(serde_json::json!({"error": "Timestamp out of range"}));
     }
 

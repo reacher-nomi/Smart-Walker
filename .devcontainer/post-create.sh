@@ -18,14 +18,9 @@ generate_secret() {
     fi
 }
 
+# Use fixed default so backend and postgres volume always match (docker-compose default is "changeme")
 if [ -z "$POSTGRES_PASSWORD" ]; then
-    echo "🔑 Generating secure random POSTGRES_PASSWORD"
-    export POSTGRES_PASSWORD=$(generate_secret)
-fi
-
-if [ -z "$PGADMIN_PASSWORD" ]; then
-    echo "🔑 Generating secure random PGADMIN_PASSWORD"
-    export PGADMIN_PASSWORD=$(generate_secret)
+    export POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-changeme}"
 fi
 
 if [ -z "$MEDHEALTH__JWT__SECRET" ]; then
@@ -45,9 +40,6 @@ POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 POSTGRES_DB=${POSTGRES_DB:-medhealth_db}
 POSTGRES_PORT=${POSTGRES_PORT:-5433}
 REDIS_PORT=${REDIS_PORT:-6379}
-PGADMIN_EMAIL=${PGADMIN_EMAIL:-admin@medhealth.local}
-PGADMIN_PASSWORD=${PGADMIN_PASSWORD}
-PGADMIN_PORT=${PGADMIN_PORT:-5050}
 JWT_SECRET=${MEDHEALTH__JWT__SECRET}
 DEVICE_SECRET=${MEDHEALTH__DEVICE__SECRET}
 ENVEOF

@@ -155,6 +155,13 @@ impl FhirService {
             "id": Uuid::new_v4().to_string(),
             "type": "collection",
             "timestamp": Utc::now().to_rfc3339(),
+            "meta": {
+                "source": self.config.base_url,
+                "tag": [{
+                    "system": "http://medhealth.local/organization",
+                    "code": self.config.organization_id
+                }]
+            },
             "entry": entries
         })
     }

@@ -35,6 +35,7 @@ async fn main() -> std::io::Result<()> {
 
     info!("🚀 MedHealth Backend starting...");
     info!("Configuration loaded: {}", settings.server.bind_addr);
+    info!("PHI encryption in logs: {}", if settings.logging.enable_phi_encryption { "enabled" } else { "disabled" });
 
     // Create database pool
     info!("Connecting to PostgreSQL...");
@@ -70,6 +71,7 @@ async fn main() -> std::io::Result<()> {
         fhir_service: fhir_service.clone(),
         sse_broadcaster: sse_broadcaster.clone(),
         device_secret: settings.device.secret.clone(),
+        replay_window_seconds: settings.device.replay_window_seconds,
     });
 
     info!("✅ All services initialized successfully");

@@ -11,7 +11,9 @@ pub struct JwtAuth {
     decoding_key: DecodingKey,
     validation: Validation,
     expiration_hours: i64,
+    refresh_token_days: i64,
 }
+
 
 impl JwtAuth {
     pub fn new(config: &JwtConfig) -> Self {
@@ -24,6 +26,7 @@ impl JwtAuth {
             decoding_key,
             validation,
             expiration_hours: config.expiration_hours,
+            refresh_token_days: config.refresh_token_days,
         }
     }
 

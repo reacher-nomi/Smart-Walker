@@ -1,6 +1,6 @@
 # Docker Compose configuration for MedHealth / Smart-Walker
 # Run from repo root: docker-compose up
-# Full platform build: postgres, redis, backend (Rust API), pgAdmin
+# Platform: postgres, redis, backend (Rust API). No pgAdmin for minimal, secure setup.
 # Create .env from .env.example and set POSTGRES_PASSWORD, JWT_SECRET, DEVICE_SECRET
 
 services:
@@ -16,7 +16,8 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-medhealth}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-medhealth} -d ${POSTGRES_DB:-medhealth_db}"]
+
       interval: 10s
       timeout: 5s
       retries: 5
@@ -52,6 +53,7 @@ services:
       MEDHEALTH__JWT__REFRESH_TOKEN_DAYS: "7"
       MEDHEALTH__DEVICE__SECRET: ${DEVICE_SECRET:-change_me_device_secret_32_chars}
       MEDHEALTH__DEVICE__REPLAY_WINDOW_SECONDS: "60"
+      
       MEDHEALTH__CORS__ALLOWED_ORIGINS: "http://localhost:5173,http://127.0.0.1:5173"
       MEDHEALTH__ML__ANOMALY_THRESHOLD: "0.85"
       MEDHEALTH__ML__ENABLE_ALERTS: "true"
@@ -70,17 +72,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: medhealth_pgadmin
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@medhealth.local}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-changeme123}
-    ports:
-      - "${PGADMIN_PORT:-5050}:80"
-    depends_on:
-      - postgres
 
 volumes:
   postgres_data:

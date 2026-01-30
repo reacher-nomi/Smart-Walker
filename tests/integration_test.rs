@@ -69,6 +69,7 @@ macro_rules! build_test_app {
                 fhir_service: fhir_service.clone(),
                 sse_broadcaster: sse_broadcaster.clone(),
                 device_secret: TEST_DEVICE_SECRET.to_string(),
+                replay_window_seconds: 60,
             });
             App::new()
                 .app_data(app_state.clone())

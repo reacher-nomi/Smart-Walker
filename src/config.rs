@@ -1,5 +1,22 @@
 use config::{Config, ConfigError, File};
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
+
+fn deserialize_allowed_origins<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum StringOrVec {
+        String(String),
+        Vec(Vec<String>),
+    }
+    match StringOrVec::deserialize(deserializer) {
+        Ok(StringOrVec::String(s)) => Ok(s.split(',').map(|x| x.trim().to_string()).filter(|x| !x.is_empty()).collect()),
+        Ok(StringOrVec::Vec(v)) => Ok(v),
+        Err(e) => Err(e),
+    }
+}
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Settings {
@@ -37,11 +54,13 @@ pub struct RedisConfig {
 pub struct JwtConfig {
     pub secret: String,
     pub expiration_hours: i64,
+    #[allow(dead_code)] // Used by JwtAuth::generate_refresh_token for long-lived tokens
     pub refresh_token_days: i64,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct CorsConfig {
+    #[serde(deserialize_with = "deserialize_allowed_origins")]
     pub allowed_origins: Vec<String>,
 }
 

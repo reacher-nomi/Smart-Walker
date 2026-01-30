@@ -4,7 +4,7 @@
 # ==============================================
 # Stage 1: Build Stage
 # ==============================================
-FROM rust:1.75-slim as builder
+FROM rust:1-slim-bookworm as builder
 
 # Install required dependencies
 RUN apt-get update && apt-get install -y \
